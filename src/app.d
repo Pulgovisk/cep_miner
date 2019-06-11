@@ -1,8 +1,8 @@
 import std.stdio;
 import std.net.curl;
 import std.conv : to;
-import std.utf : toUTF8;
 import std.json;
+import std.array : replace;
 import std.file : exists, chdir;
 import html;
 import core.thread;
@@ -98,7 +98,14 @@ void update_git() {
 }
 
 enum api_base = "C:\\Temp\\cep_api\\";
-enum ufs = [  "11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27", "28", "29", "31", "32", "33", "35", "41", "42", "43", "50", "51", "52", "53" ];
+enum ufs = [ "11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27", "28", "29", "31", "32", "33", "35", "41", "42", "43", "50", "51", "52", "53" ];
+
+string toUTF8(string org) {
+	import std.encoding : transcode;
+	string dest;
+	transcode(org, dest);
+	return dest;
+}
 
 void main(string[] args)
 {
@@ -107,17 +114,16 @@ void main(string[] args)
 	foreach (uf; ufs) {
 		string get_result = get("http://servicodados.ibge.gov.br/api/v1/localidades/estados/" ~ uf ~ "/municipios").to!string;
 
-		JSONValue resultado = parseJSON(get_result);
-
+		JSONValue resultado = parseJSON(get_result.toUTF8);
 		size_t consultado = 0;
 		foreach (val; resultado.array) {
-			writeln("Consultando para ", val["nome"].str, " ", val.object["microrregiao"].object["mesorregiao"].object["UF"]["sigla"].str);
+			writeln("Consultando para ", val["nome"].str, "/", val.object["microrregiao"].object["mesorregiao"].object["UF"]["sigla"].str);
 
 			string result = post(
 				"http://www.buscacep.correios.com.br/sistemas/buscacep/resultadoBuscaCepEndereco.cfm?t",
 				[
-					"relaxation": val["nome"].str ~ " " ~ val.object["microrregiao"].object["mesorregiao"].object["UF"]["sigla"].str,
-					"tipoCEP": "LOG",
+					"relaxation": val["nome"].str ~ "/" ~ val.object["microrregiao"].object["mesorregiao"].object["UF"]["sigla"].str,
+					"tipoCEP": "UOP",
 					"Metodo": "listaLogradouro",
 					"TipoConsulta": "relaxation",
 					"StartRow": "1",
@@ -134,12 +140,12 @@ void main(string[] args)
 			foreach(p; doc.querySelectorAll(".tmptabela tr td")) {
 				if (current == 0) {
 					if (p.text.length > 6) {
-						json["logradouro"] = p.text.toUTF8[0 .. $ - 6];
+						json["logradouro"] = p.text.to!string.toUTF8.replace("&nbsp", "");
 					}
 					current++;
 				} else if (current == 1) { 
 					if (p.text.length > 6) {
-						json["bairro"] = p.text.toUTF8[0 .. $ - 6];
+						json["bairro"] = p.text.to!string.toUTF8.replace("&nbsp", "");
 					}
 					current++;
 				} else if (current == 2) { 
@@ -148,7 +154,7 @@ void main(string[] args)
 					JSONValue cidade = JSONValue();
 					auto splited = p.text.split("/");
 
-					cidade["nome"] = splited[0].toUTF8;
+					cidade["nome"] = splited[0].to!string.toUTF8;
 
 					string sUF = splited[1].to!string()[0..2];
 					cidade.object["estado"] = [ "sigla": sUF, "nome": obter_nome_uf(sUF) ];
@@ -157,8 +163,6 @@ void main(string[] args)
 
 					current++;
 				} else if (current == 3) { 
-					import std.array : replace;
-
 					json["cep"] = p.text.replace("-", "");
 
 					if (json.object["cidade"]["nome"].str == val["nome"].str &&
@@ -173,10 +177,10 @@ void main(string[] args)
 				}
 			}
 
-			if (consultado % 25 == 0) {
+			if (consultado % 100 == 0) {
 				update_git();
 			}
-			Thread.sleep( dur!("seconds")( 5 ) );
+			//Thread.sleep( dur!("msecs")(500) );
 		}
 	}
 }
