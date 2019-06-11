@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+cep_miner.so
+cep_miner.dylib
+cep_miner.dll
+cep_miner.a
+cep_miner.lib
+cep_miner-test-*
+*.exe
+*.o
+*.obj
+*.lst
+bin

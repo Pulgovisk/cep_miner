@@ -1,0 +1,13 @@
+{
+	"name": "cep_miner",
+	"authors": [
+		"João Paulo"
+	],
+	"description": "Cep api",
+	"copyright": "Copyright © 2019, João Paulo",
+	"license": "MIT",
+	"dependencies": {
+		"htmld": "~>0.3.7"
+	},
+	"targetPath": "bin"
+}
